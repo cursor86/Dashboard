@@ -1,0 +1,46 @@
+name: 🚀 1-Click Etsy Dashboard Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      client_name:
+        description: 'Etsy Buyer Business Name'
+        required: true
+        default: 'Acme Corp'
+      client_niche:
+        description: 'Target Audience/Niche (e.g., Detailer, Bakery)'
+        required: true
+        default: 'Automotive Specialist'
+      currency_unit:
+        description: 'Target Currency Unit ($, £, €)'
+        required: true
+        default: '$'
+
+jobs:
+  compile-spreadsheet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Master Layout & Logic Code
+        uses: actions/checkout@v4
+
+      - name: Launch Python Cloud Container
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Secure Open-Source Spreadsheet Parsers
+        run: pip install openpyxl
+
+      - name: Execute Live Variable Template Substitution
+        env:
+          BUYER_NAME: ${{ github.event.inputs.client_name }}
+          BUYER_NICHE: ${{ github.event.inputs.client_niche }}
+          CURRENCY: ${{ github.event.inputs.currency_unit }}
+        run: python engine.py
+
+      - name: Package Dynamic Client Asset for 1-Click Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.client_name }}-Etsy-Order
+          path: "Custom_Financial_Dashboard_*.xlsx"
+          retention-days: 3
