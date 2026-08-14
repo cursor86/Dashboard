@@ -42,5 +42,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.client_name }}-Etsy-Order
-          path: "Custom_Financial_Dashboard_*.xlsx"
+          path: "Custom_*.xlsx"
           retention-days: 3
