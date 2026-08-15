@@ -9,6 +9,7 @@ TEMPLATES = [
     ("master_template.xlsx", "Custom_Financial_Dashboard"),
     ("bookkeeping_template.xlsx", "Custom_Bookkeeping"),
     ("small_business_tracker_template.xlsx", "Custom_Small_Business_Tracker"),
+    ("pricing_calculator_template.xlsx", "Custom_Pricing_Calculator"),
 ]
 
 def compile_template(master_file, output_label, buyer_name, buyer_niche, currency):
