@@ -1,0 +1,220 @@
+{
+  "name": "Etsy Order to Google Sheets + Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⚙️ SETUP (10 min)\n\n1. **Trigger this workflow**: Etsy does not offer a native n8n connector, so bridge it with a free Zapier or Make.com \"Etsy New Order\" trigger that POSTs to this workflow's Webhook URL (copy the Production URL from the 'New Order Webhook' node). Send these fields in the POST body: order_id, buyer_name, buyer_email, item_name, amount, order_date, shipping_address.\n2. **Google Sheets**: connect your Google credentials in 'Log Order to Sheet' and pick/create a sheet with columns: Order ID | Buyer Name | Buyer Email | Item | Amount | Order Date | Shipping Address | Status.\n3. **Telegram** (optional seller alert): create a bot via @BotFather, add the token to the 'Notify Seller on Telegram' node's credentials, and set your Chat ID.\n4. **Gmail**: connect the account that will send the buyer's order confirmation email in 'Send Buyer Confirmation'.\n\nThen activate the workflow (top-right toggle).",
+        "height": 460,
+        "width": 460
+      },
+      "id": "49946ed5-935b-48f1-8dd9-511811451caa",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-etsy-order",
+        "options": {}
+      },
+      "id": "e6fb44df-d3f7-4847-8733-be28c90b8f5d",
+      "name": "New Order Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73324fca-ed35-4329-8078-180b8ab44cbd",
+              "name": "order_id",
+              "value": "={{ $json.body.order_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "445595bb-f98a-43fc-aea8-594792090bdd",
+              "name": "buyer_name",
+              "value": "={{ $json.body.buyer_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "961cbf74-d2f9-46aa-bce1-96101f446f95",
+              "name": "buyer_email",
+              "value": "={{ $json.body.buyer_email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f4a0f5a4-bc45-4e76-a069-1ef2dfb2cc84",
+              "name": "item_name",
+              "value": "={{ $json.body.item_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "754afa8c-1239-4a0d-9756-9505cd23093c",
+              "name": "amount",
+              "value": "={{ $json.body.amount || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "67f76bda-3da4-4dc8-852d-89ac648f1ae1",
+              "name": "order_date",
+              "value": "={{ $json.body.order_date || $now.format('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "7d47ee50-9010-4141-b8cb-9b0179fad4f6",
+              "name": "shipping_address",
+              "value": "={{ $json.body.shipping_address || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f965dc73-fbc9-45ca-8192-e5604331d61c",
+      "name": "Extract Order Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order ID": "={{ $json.order_id }}",
+            "Buyer Name": "={{ $json.buyer_name }}",
+            "Buyer Email": "={{ $json.buyer_email }}",
+            "Item": "={{ $json.item_name }}",
+            "Amount": "={{ $json.amount }}",
+            "Order Date": "={{ $json.order_date }}",
+            "Shipping Address": "={{ $json.shipping_address }}",
+            "Status": "New"
+          }
+        },
+        "options": {}
+      },
+      "id": "ed1f329c-515a-4abb-b0e3-1464ae45b69a",
+      "name": "Log Order to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_YOUR_CHAT_ID",
+        "text": "=🛍️ *New Etsy Order!*\n\n📦 {{ $json.Item }}\n👤 {{ $json['Buyer Name'] }}\n💰 {{ $json.Amount }}\n\nOrder #{{ $json['Order ID'] }} — placed {{ $json['Order Date'] }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "9b852da2-0c85-473a-a863-3e3360825a70",
+      "name": "Notify Seller on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1080,
+        -120
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Buyer Email'] }}",
+        "subject": "=Your order #{{ $json['Order ID'] }} has been received!",
+        "message": "=Hi {{ $json['Buyer Name'] }},\n\nThanks for your order! We've received your purchase of \"{{ $json.Item }}\" and we're getting it ready.\n\nOrder #: {{ $json['Order ID'] }}\nAmount: {{ $json.Amount }}\n\nWe'll let you know as soon as it ships.\n\nThank you for supporting our small shop!\n[YOUR SHOP NAME]",
+        "options": {}
+      },
+      "id": "c3468450-d0e3-49a1-bd3b-59303b1a994b",
+      "name": "Send Buyer Confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1080,
+        120
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Order Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Order Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Order Fields": {
+      "main": [
+        [
+          {
+            "node": "Log Order to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Order to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Notify Seller on Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Buyer Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

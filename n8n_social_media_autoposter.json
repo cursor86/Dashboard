@@ -1,0 +1,264 @@
+{
+  "name": "Social Media Auto-Poster (Twitter_X + Instagram)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⚙️ SETUP (10 min)\n\n1. **Google Sheets**: create a 'Content Calendar' sheet with columns: Date (yyyy-MM-dd) | Caption | Image URL | Posted. Connect your Google credentials in 'Read Content Calendar'.\n2. **X (Twitter)**: connect your account in 'Post to X'.\n3. **Instagram**: connect a Facebook Graph API credential (linked to your Instagram Business account) in both 'Create IG Media Container' and 'Publish IG Media'. Set the Instagram Business Account ID as a Set node value if you extend this workflow.\n4. This checks the calendar every morning and posts any row scheduled for today that isn't already marked Posted. For platforms without a native n8n node (e.g. Pinterest, TikTok), duplicate the HTTP Request pattern used here or connect via a third-party bridge like Buffer/Zapier.\n\nThen activate the workflow (top-right toggle).",
+        "height": 480,
+        "width": 480
+      },
+      "id": "4878ffba-8035-4524-ae9e-7e8e355fcfd6",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "88fcb07c-e6f9-49f1-b458-28d9f8f42221",
+      "name": "Every Morning at 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "e24c79e6-5045-4753-ae1a-94426e916bc2",
+      "name": "Read Content Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = $now.format('yyyy-MM-dd');\nconst due = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  const posted = String(row.Posted || '').trim().toLowerCase();\n  if (posted === 'yes' || posted === 'true') continue;\n  if (String(row.Date || '').trim() === today) due.push(item);\n}\nreturn due;"
+      },
+      "id": "b315e588-0b45-4ed1-a123-882d465a36e7",
+      "name": "Find Today's Unposted Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "07bb0fe1-c230-4da3-aea6-a7fca35b279c",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.Caption }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "id": "ed389342-962f-459c-b15f-e0406f392932",
+      "name": "Has a Post Due Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.Caption }}",
+        "additionalFields": {}
+      },
+      "id": "7daf6b76-9c5b-4d90-aea1-92472206a5de",
+      "name": "Post to X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -140
+      ],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "X (Twitter) account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "edge": "media",
+        "node": "={{ $json.instagram_business_account_id }}",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "image_url",
+                "value": "={{ $json['Image URL'] }}"
+              },
+              {
+                "name": "caption",
+                "value": "={{ $json.Caption }}"
+              }
+            ]
+          }
+        },
+        "graphApiVersion": "v20.0",
+        "httpRequestMethod": "POST"
+      },
+      "id": "b13131b1-6cae-473d-b48f-8f8fa95c30ab",
+      "name": "Create IG Media Container",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        140
+      ],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "REPLACE_ME",
+          "name": "Facebook Graph account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "edge": "media_publish",
+        "node": "={{ $json.instagram_business_account_id }}",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "creation_id",
+                "value": "={{ $json.id }}"
+              }
+            ]
+          }
+        },
+        "graphApiVersion": "v20.0",
+        "httpRequestMethod": "POST"
+      },
+      "id": "b5b5d5dd-628e-4f9a-b9d0-a12e27497af7",
+      "name": "Publish IG Media",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        140
+      ],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "REPLACE_ME",
+          "name": "Facebook Graph account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Morning at 9am": {
+      "main": [
+        [
+          {
+            "node": "Read Content Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Content Calendar": {
+      "main": [
+        [
+          {
+            "node": "Find Today's Unposted Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Today's Unposted Post": {
+      "main": [
+        [
+          {
+            "node": "Has a Post Due Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has a Post Due Today?": {
+      "main": [
+        [
+          {
+            "node": "Post to X",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create IG Media Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Create IG Media Container": {
+      "main": [
+        [
+          {
+            "node": "Publish IG Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

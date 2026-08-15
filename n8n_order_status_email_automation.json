@@ -1,0 +1,362 @@
+{
+  "name": "Order Status Email Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ⚙️ SETUP (10 min)\n\n1. **Google Sheets**: pairs with the Orders sheet from 'Etsy Order to Google Sheets + Notification' — needs columns: Order ID | Buyer Name | Buyer Email | Item | Status | Email Sent.\n   Update the Status column yourself (Confirmed / Shipped / Delivered) as orders progress (or connect it to your fulfillment process).\n2. Connect your Google credentials in 'Read Orders Sheet'.\n3. **Gmail**: connect the sending account on all three email nodes.\n4. This runs every 30 minutes, finds rows whose Status changed since the last email, sends the matching templated email, then updates 'Email Sent' so it's never sent twice.\n\nThen activate the workflow (top-right toggle).",
+        "height": 480,
+        "width": 480
+      },
+      "id": "7567aa3a-7c97-4f04-b52a-b4b292e2f655",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "4c3756ba-f780-4361-8070-f3d380f6acf8",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "14d6bd0b-6660-4293-8e42-3ccd39a79c51",
+      "name": "Read Orders Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const changed = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  const status = String(row.Status || '').trim();\n  const emailSent = String(row['Email Sent'] || '').trim();\n  if (status && status !== emailSent) changed.push(item);\n}\nreturn changed;"
+      },
+      "id": "300a1c80-52f8-4d72-acbd-cb3897a0b125",
+      "name": "Find Status Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "Confirmed",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "67909f96-3080-4f52-b91b-aefa2265b6cb",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    },
+                    "leftValue": "={{ $json.Status }}",
+                    "rightValue": "Confirmed"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "Shipped",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "7ab34f6f-6d40-4d8e-bb85-1b796a76a489",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    },
+                    "leftValue": "={{ $json.Status }}",
+                    "rightValue": "Shipped"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "Delivered",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b9e55245-cbcd-40aa-bbee-779ed66678cc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    },
+                    "leftValue": "={{ $json.Status }}",
+                    "rightValue": "Delivered"
+                  }
+                ]
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "81357c09-044e-4959-9081-46e11c4258ba",
+      "name": "Route by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1080,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Buyer Email'] }}",
+        "subject": "=Your order #{{ $json['Order ID'] }} is confirmed",
+        "message": "=Hi {{ $json['Buyer Name'] }},\n\nYour order for \"{{ $json.Item }}\" is confirmed and being prepared. We'll email you again once it ships.\n\nThank you!\n[YOUR SHOP NAME]",
+        "options": {}
+      },
+      "id": "6f879320-5579-4d1f-998e-5ad6d2fd6d7a",
+      "name": "Send Confirmed Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        -180
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Buyer Email'] }}",
+        "subject": "=Your order #{{ $json['Order ID'] }} has shipped!",
+        "message": "=Hi {{ $json['Buyer Name'] }},\n\nGood news — \"{{ $json.Item }}\" is on its way to you!\n\nThank you for your order.\n[YOUR SHOP NAME]",
+        "options": {}
+      },
+      "id": "277d2c7b-3b43-4558-92f9-6659171bf5cc",
+      "name": "Send Shipped Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Buyer Email'] }}",
+        "subject": "=How's your order #{{ $json['Order ID'] }}?",
+        "message": "=Hi {{ $json['Buyer Name'] }},\n\nWe hope you're loving \"{{ $json.Item }}\"! If you have a moment, a review would mean the world to our small shop.\n\nThank you!\n[YOUR SHOP NAME]",
+        "options": {}
+      },
+      "id": "af28e9f1-1bfc-4a7e-8305-ba2ee871cfda",
+      "name": "Send Delivered_Review Request Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        180
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Order ID"
+          ],
+          "value": {
+            "Order ID": "={{ $json['Order ID'] }}",
+            "Email Sent": "={{ $json.Status }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "d82eb502-d2be-4368-9f51-bc3bffbca2f6",
+      "name": "Mark Email as Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1560,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Read Orders Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Orders Sheet": {
+      "main": [
+        [
+          {
+            "node": "Find Status Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Status Changes": {
+      "main": [
+        [
+          {
+            "node": "Route by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Status": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmed Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Shipped Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Delivered_Review Request Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmed Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Email as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Shipped Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Email as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Delivered_Review Request Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Email as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
